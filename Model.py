@@ -51,40 +51,42 @@ class Agent(mesa.Agent):
 
     def bayesian_update(self):
         # Bayesian update according to Definition 3.1 from combining opinion pooling paper
-        alpha = self.alpha
-        op_val1 = self.opinion
-        op_val2 = 1 - self.opinion
-        equal_chance = random.uniform(0,1)
-
-        # For evidence of H1
-        if equal_chance > 0.5:
-            self.opinion = ((1-alpha) * op_val1) / ((alpha * op_val2) + (1 - alpha) * (1 - op_val2))
-
-        if equal_chance <= 0.5:
-            self.opinion = (alpha * op_val1) / ((alpha * op_val2) + alpha * (1 - op_val2))
-        return self
-
+        delta = 1 - self.alpha            
+        x = self.opinion
+        self.opinion = ( delta*x ) / ( (delta*x) + ((1-delta)*(1-x)) )
+        
+    def switched_bayesian(self):
+        if self.model.STEP < 200:
+            delta = 1 - self.alpha
+        if self.model.STEP >= 200:
+            delta = self.alpha        
+        x = self.opinion
+        self.opinion = ( delta*x ) / ( (delta*x) + ((1-delta)*(1-x)) )
+        
     def step(self):
         # Simulate agents randomly coming comparing the two options
         x = random.uniform(0,1)
         if x < self.epsilon:
-            self.bayesian_update()
-
+            if self.model.dynamics == "switching":
+                self.switched_bayesian()
+            else:
+                self.bayesian_update()
         # I want to change it so that the pooling only occurs after every agent has moved. This would simulate agents
         # moving simulataneously
 
         if self.model.pooling == True:
             if self == self.model.schedule.agents[-1]:
-                for pools in range(self.model.num_agents // self.model.pool_size):
-                    pooled_agents = self.pool_agents()
-                    self.SProdOp(pooled_agents)
+                pooled_agents = self.pool_agents()
+                self.SProdOp(pooled_agents)
 
 class Model(mesa.Model):
 
-    def __init__(self, K, n, w, alpha, epsilon, pooling = True, uniform = False):
+    def __init__(self, K, n, w, alpha, epsilon, pooling = True, uniform = False, dynamics = "none"):
         self.num_agents = K
+        self.STEP = 0
         self.pooling = pooling
         self.uniform = uniform
+        self.dynamics = dynamics
         # Shuffle the agents so that they are all activated once per step, and this order is shuffled at each step.
         # This is representative of the 'well mixed' scenario
         self.schedule = mesa.time.RandomActivation(self)
@@ -102,4 +104,5 @@ class Model(mesa.Model):
 
     def step(self):
         self.datacollector.collect(self)
+        self.STEP += 1
         self.schedule.step()
