@@ -45,6 +45,7 @@ class Agent(mesa.Agent):
         for agent in pooled_agents:
             pooled_opinions.append(agent.opinion)
         w = self.weight
+        undefined
         c_x = ((np.prod(pooled_opinions))**w)/(((np.prod(pooled_opinions))**w)+(np.prod(list(1-np.asarray(pooled_opinions)))**w))
         for agent in pooled_agents:
             agent.opinion = c_x
@@ -96,6 +97,23 @@ class Model(mesa.Model):
         for i in range(self.num_agents):
             a = Agent(i, self, w, alpha, epsilon)
             self.schedule.add(a)
+            
+        # Let's say we want 10% stubborn agents in either direction
+        n_stubborn = int(self.num_agents * s_proportion)
+        # Then we can find the pool of stubborn agents
+        stubborn_pos_pool = self.schedule.agents[0:int(n_stubborn/2)]
+        stubborn_neg_pool = self.schedule.agents[int(n_stubborn/2):n_stubborn]
+        
+        for agent in self.schedule.agents:
+            agent.stubborn = False
+            
+            if agent in stubborn_pos_pool:
+                agent.stubborn = True
+                agent.opinion = 1
+                
+            if agent in stubborn_neg_pool:
+                agent.stubborn = True
+                agent.opinion = 0
 
         self.datacollector = mesa.DataCollector(
             model_reporters = {"Average_opinion" : compute_average_opinion, "Consensus" : compute_consensus},
