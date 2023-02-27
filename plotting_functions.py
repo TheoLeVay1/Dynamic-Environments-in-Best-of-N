@@ -46,15 +46,16 @@ def plot_consensus(results_df, iterations, max_steps):
     plt.figure()
     plt.plot(results_it.Step, np.mean(data , axis = 0),
     color = 'black', label = 'Mean average opinion')
+    
     # Plotting the range of the results by standard deviations
     plt.fill_between(results_it.Step, np.mean(data, axis = 0) + std_arr,
      np.mean(data, axis = 0) - std_arr, label = 'Standard deviation')
+    
     # Now we want to plot the actual, stepping function of option quality
-
     plt.plot(results_it.Step, results_df[results_df.iteration == 0]["Option quality"],
     color = 'grey', label = 'Stepping function')
 
 
     plt.legend(loc = 5)
     plt.xlim(0, max_steps)
-    plt.ylim(0,1.1)
+    plt.ylim(-0.1, 1.1)

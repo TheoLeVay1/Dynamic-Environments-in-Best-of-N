@@ -4,16 +4,27 @@ import random
 import pandas as pd
 import matplotlib.pyplot as plt
 import math
+import seaborn as sns
+from plotting_functions import *
 
 '''
 Definitions for model-wide parameters that is called later in self.datacollector model_reporters
 '''
 
-def compute_consensus(model):
+def compute_consensus(self):
     
-    agent_opinions = [agent.opinion for agent in model.schedule.agents]
+    agent_opinions = [agent.opinion for agent in self.model.schedule.agents]
     agreed_opinions = [i for i in agent_opinions if i >= 0.9]
-    return len(agreed_opinions) / len(agent_opinions)
+    
+    
+    # If loop for the init call of this function, prevents divide by 0 error
+    if len(agent_opinions) != 0:
+        
+        return len(agreed_opinions) / len(agent_opinions)
+    
+    else:
+        
+        return 0
 
 def compute_average_opinion(model):
     
@@ -56,25 +67,32 @@ class Agent(mesa.Agent):
         self.consensus = 0
         # Weight is the same for each agent, since we are planning to use special case in SProdOp
         self.weight = w
-        self.alpha = alpha
         self.epsilon = epsilon
-                
+        self.TIME = self.model.TIME    
+        
+        # Initialising the real time consesus reading 
+        
+        self.realtime_consensus = compute_consensus(self)
     
     def pool_agents(self):
-        # Want to return the self + n neighbouring agents.
+        
+        # Return array of [agent and (n) neighbouring agents]
+        
         pooled_agents = [self]
         # Random approach - randomly choose n agents, assumes 'Well-mixed' model.
         while len(pooled_agents) < self.model.pool_size:
             other_agent = self.random.choice(self.model.schedule.agents)
+            
             if other_agent not in pooled_agents:
                 pooled_agents.append(other_agent)
+                
         return pooled_agents  
     
     
     
     def SProdOp(self, pooled_agents):
         
-        # SProdOp from combining opinion pooling paper. Only works in special case when w = const.
+        # SProdOp from combining opinion pooling paper for w = const
         
         pooled_opinions = []
         
@@ -86,22 +104,30 @@ class Agent(mesa.Agent):
         c_x = ((np.prod(pooled_opinions))**w)  /  ((np.prod(pooled_opinions)**w)  + 
                                                 np.prod(list(1-np.asarray(pooled_opinions)))**w )
         
-        if math.isnan(c_x) == True:
-            c_x = 1
+        if math.isnan(c_x) != True:
         
-        for agent in pooled_agents:
-            
-            # We do not want to change the opinions of stubborn agents, however we want them to change the opinions of others
-            
-            if agent.stubborn == False:
-                agent.opinion = c_x
+            for agent in pooled_agents:
+
+                # We do not want to change the opinions of stubborn agents, however we want them to change the opinions of others
+
+                if agent.stubborn != True:
+                    agent.opinion = c_x
 
                 
                 
     def bayesian_update(self):
         
+        if self.model.dynamics == "visit_dynamic":
+            alpha = 1 - self.model.option_quality
+            
+            if self.model.option_quality > 0:
+                self.model.option_quality -= 0.01
+            
+        else:            
+            alpha = self.model.alpha
+        
         # Bayesian update according to Definition 3.1 from combining opinion pooling paper
-        delta = 1 - self.alpha           
+        delta = 1 - alpha 
         x = self.opinion
         self.opinion = ( delta*x ) / ( (delta*x) + ((1-delta)*(1-x)) )
         
@@ -109,19 +135,20 @@ class Agent(mesa.Agent):
         
     def switched_bayesian(self):
         
-        if self.model.STEP < 200:
-            delta = 1 - self.alpha
-        if self.model.STEP >= 200:
-            delta = self.alpha        
+        if self.model.TIME < 200:
+            delta = 1 - self.model.alpha
+            
+        if self.model.TIME >= 200:
+            delta = self.model.alpha  
+            
         x = self.opinion
-        self.opinion = ( delta*x ) / ( (delta*x) + ((1-delta)*(1-x)) )
-                
+        self.opinion = ( delta*x ) / ( (delta*x) + ((1-delta)*(1-x)) )                
             
             
     def step(self):
         # Simulate agents randomly coming comparing the two options
         x = random.uniform(0,1)        
-        if self.stubborn == False:        
+        if self.stubborn != True:        
             
             if x < self.epsilon:
                 
@@ -131,8 +158,7 @@ class Agent(mesa.Agent):
                 else:
                     self.bayesian_update()
 
-        # I want to change it so that the pooling only occurs after every agent has moved. This would simulate agents
-        # moving simulataneously
+        # Pooling only occurs once all the agents have 'moved' simultaneously and had a chance of finding evidence, hence [-1]
 
         if self.model.pooling == True:
             
@@ -140,17 +166,28 @@ class Agent(mesa.Agent):
                 
                 pooled_agents = self.pool_agents()
                 self.SProdOp(pooled_agents)
-                         
+        # Updating the time of the whole model running
+        
+        self.realtime_consensus = compute_consensus(self)
+        self.TIME += 1
+        
+        
+        
+        if self.model.dynamics == "time_dynamic":
+            self.model.alpha = 1 - self.model.option_quality
+                
+#         self.model.TIME += 1
+                                         
 '''
 Model class:
 
 K: total number of class agents to call
-STEP: step to be updated for every step change in the agent class, rather than at the model level
+TIME: time to be updated for every step change in the agent class, rather than at the model level
 
 dynamics:
 
 "none"
-"switching": dynamic switching at time (=200 STEPs)
+"switching": dynamic switching at time (=200 TIME)
 "time_dynamic": option quality changes as a function of time **YET TO BE INCORPORATED** 
 "visit_dynamic": option quality changes as a function of agent visits **YET TO BE INCORPORATED**
 
@@ -160,12 +197,13 @@ class Model(mesa.Model):
     
     def __init__(self, K, n, w, alpha, epsilon, pooling = False, 
                  uniform = False, dynamics = "none", measures = "none",
-                s_proportion = 0):
+                s_proportion = 0, TIME = 0):
         
         self.num_agents = K
-        self.STEP = 0
+        self.TIME = TIME
         self.pooling = pooling
         self.uniform = uniform
+        self.alpha = alpha
         self.dynamics = dynamics
         self.measures = measures
         self.s_proportion = s_proportion
@@ -174,35 +212,51 @@ class Model(mesa.Model):
         self.schedule = mesa.time.RandomActivation(self)
         self.pool_size = n
         self.running = True
+        
+        
+        # Introducing option quality
+        
+        self.option_quality = 1
     
 
         for i in range(self.num_agents):
             a = Agent(i, self, w, alpha, epsilon)
             self.schedule.add(a)
+#             self.TIME += 1
 
         self.datacollector = mesa.DataCollector(
-            model_reporters = {"Average_opinion" : compute_average_opinion, "Consensus" : compute_consensus},
-            agent_reporters = {"Opinion" : "opinion"})
+            model_reporters = {"Average_opinion" : compute_average_opinion, "Option quality" : "option_quality"},
+            agent_reporters = {"Opinion" : "opinion", "Consensus" : compute_consensus, "trueconsensus" : "realtime_consensus"} )
         
-        # Let's say we want 10% stubborn agents in either direction
-        n_stubborn = int(self.num_agents * s_proportion)
-        # Then we can find the pool of stubborn agents
-        stubborn_pos_pool = self.schedule.agents[0:int(n_stubborn/2)]
-        stubborn_neg_pool = self.schedule.agents[int(n_stubborn/2):n_stubborn]
+        if measures == "stubborn":
         
-        for agent in self.schedule.agents:
-            agent.stubborn = False
-            
-            if agent in stubborn_pos_pool:
-                agent.stubborn = True
-                agent.opinion = 1
-                
-            if agent in stubborn_neg_pool:
-                agent.stubborn = True
-                agent.opinion = 0
+            # Let's say we want 10% stubborn agents in either direction
+            n_stubborn = int(self.num_agents * s_proportion)
+            # Then we can find the pool of stubborn agents
+            stubborn_pos_pool = self.schedule.agents[0:int(n_stubborn/2)]
+            stubborn_neg_pool = self.schedule.agents[int(n_stubborn/2):n_stubborn]
+
+            for agent in self.schedule.agents:
+                agent.stubborn = False
+
+                if agent in stubborn_pos_pool:
+                    agent.stubborn = True
+                    agent.opinion = 0.9
+
+                if agent in stubborn_neg_pool:
+                    agent.stubborn = True
+                    agent.opinion = 0.1
+                    
+        else: 
+            for agent in self.schedule.agents:
+                agent.stubborn = False
         
 
     def step(self):
         self.datacollector.collect(self)
-        self.STEP += 1
         self.schedule.step()
+        
+        if self.option_quality > 0:
+            self.option_quality -= 0.01
+            
+        self.TIME += 1
