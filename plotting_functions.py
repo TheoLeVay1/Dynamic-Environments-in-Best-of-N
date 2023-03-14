@@ -62,7 +62,7 @@ def plot_average_opinion(results_df, iterations, max_steps):
     
     
 
-def return_consensus_time(results_df, params, iterations, variable_parameter = "none", reconvergence = False):
+def return_consensus_time(results_df, params, iterations, max_steps, variable_parameter = "none", reconvergence = False):
     
     '''    
     Run simulation, as shown in plot_average_opinion description, to return results_df.
@@ -75,24 +75,30 @@ def return_consensus_time(results_df, params, iterations, variable_parameter = "
         data = []
         
         for it in range(iterations):         
+            
             # At the point at which the majority is at the consensus point (0.9), consensus is reached
             # We split the dataframe again by iteration
-            
             if reconvergence == False:   
                 results_it = results_df[(results_df.iteration == it) & (results_df.Majority >= 0.9)]
                 
+                if len(results_it) > 0:
+                    consensus_time = results_it.Step.values[0]
+                    
+                else:
+                    conensus_time = 1000 ## from start to dynamic point
+                
+            # Reconvergence -> Dynamic Majority (proportion of opinions 0.1 or below)
             elif reconvergence == True:
                 results_it = results_df[(results_df.iteration == it) & (results_df.Dynamic_Majority >= 0.9)]
                 
-            if len(results_it) > 0:
-                consensus_time = results_it.Step.values[0]
-                data.append(consensus_time)
+                if len(results_it) > 0:
+                    consensus_time = results_it.Step.values[0]
                     
-            else:
-                # Here, we are saying that the consensus time is 1000 if the consensus is not reached
-                consensus_time = 1000
+                else:
+                    consensus_time = max_steps  ## from start to end of simulation
+                
                 data.append(consensus_time)
-                    
+                
         return np.mean(np.array(data), axis = 0)
      
         
