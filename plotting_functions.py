@@ -112,22 +112,28 @@ def return_consensus_time(results_df, params, iterations, max_steps, variable_pa
                 # Split the dataframe into separate dataframes for each parameter value
                 results_p2 = results_p1[results_p1[variable_parameter2] == p2]
                 
-                if reconvergence == False:   
-                    results_it = results_df[(results_df.iteration == it) & (results_df.Majority >= 0.9)]
-                    if len(results_it) > 0:
-                        consensus_time = results_it.Step.values[0]
-                    else:
-                        conensus_time = 1000 ## from start to dynamic point
+                for it in range(iterations):
+                
+                    if reconvergence == False:   
+                        results_it = results_p2[(results_p2.iteration == it) & (results_p2.Majority >= 0.9)]
+                        
+                        if len(results_it) > 0:
+                            consensus_time = results_it.Step.values[0]
+                        else:
+                            consensus_time = 1000 ## from start to dynamic point
 
-                # Reconvergence -> Dynamic Majority (proportion of opinions 0.1 or below)
-                elif reconvergence == True:
-                    results_it = results_df[(results_df.iteration == it) & (results_df.Dynamic_Majority >= 0.9)]
-                    if len(results_it) > 0:
-                        consensus_time = results_it.Step.values[0]
-                    else:
-                        consensus_time = max_steps  ## from start to end of simulation
-                data.append(consensus_time)                    
-
+                    # Reconvergence -> Dynamic Majority (proportion of opinions 0.1 or below)
+                    elif reconvergence == True:
+                        results_it = results_p2[(results_p2.iteration == it) & (results_p2.Dynamic_Majority >= 0.9)]
+                        
+                        if len(results_it) > 0:
+                            consensus_time = results_it.Step.values[0]
+                        else:
+                            consensus_time = max_steps  ## from start to end of simulation
+                            
+                    data.append(consensus_time)      
+      
+                                
                 # Update the consenus average for fixed p1, for all p2
                 consensus_avgs.append(np.mean(np.array(data), axis = 0))
             data_mat[idx] = consensus_avgs
