@@ -10,21 +10,25 @@ from plotting_functions import *
 '''
 Definitions for model-wide parameters that is called later in self.datacollector model_reporters
 '''
-
-def compute_majority(self):
-    
+def compute_dynamic_majority(self):
     agent_opinions = [agent.opinion for agent in self.model.schedule.agents]
-    agreed_opinions = [i for i in agent_opinions if i >= 0.9]
-
+    agreed_opinions = [i for i in agent_opinions if i <= 0.1]
     # If loop for the init call of this function, prevents divide by 0 error
     if len(agent_opinions) != 0:
         return len(agreed_opinions) / len(agent_opinions)
-    
+    else:
+        return 0
+
+def compute_majority(self):
+    agent_opinions = [agent.opinion for agent in self.model.schedule.agents]
+    agreed_opinions = [i for i in agent_opinions if i >= 0.9]
+    # If loop for the init call of this function, prevents divide by 0 error
+    if len(agent_opinions) != 0:
+        return len(agreed_opinions) / len(agent_opinions)
     else:
         return 0
 
 def compute_average_opinion(model):
-    
     agent_opinions = [agent.opinion for agent in model.schedule.agents]
     return sum(agent_opinions)/len(agent_opinions)
 
@@ -68,15 +72,10 @@ class Agent(mesa.Agent):
         self.epsilon = epsilon
         self.TIME = self.model.TIME
         self.alpha = alpha
-        
         # Initialising the real time consesus reading 
-        
-        self.realtime_consensus = compute_majority(self)
     
     def pool_agents(self):
-        
         # Return array of [agent and (n) neighbouring agents]
-        
         pooled_agents = [self]
         # Random approach - randomly choose n agents, assumes 'Well-mixed' model.
         while len(pooled_agents) < self.model.pool_size:
@@ -89,52 +88,45 @@ class Agent(mesa.Agent):
     
     
     
-    def SProdOp(self, pooled_agents):
-        
+    def SProdOp(self, pooled_agents):        
         # SProdOp from combining opinion pooling paper for w = const
-        
         pooled_opinions = []
-        
         for agent in pooled_agents:
             pooled_opinions.append(agent.opinion)
             
         w = self.weight
-        
         c_x = ((np.prod(pooled_opinions))**w)  /  ((np.prod(pooled_opinions)**w)  + 
-                                                np.prod(list(1-np.asarray(pooled_opinions)))**w )
+                                        np.prod(list(1-np.asarray(pooled_opinions)))**w )
         
         if math.isnan(c_x) != True:
-        
             for agent in pooled_agents:
-
                 # We do not want to change the opinions of stubborn agents, however we want them 
                 # to change the opinions of others
-
                 if agent.stubborn != True:
                     agent.opinion = c_x
+                    
+        if agent.opinion > 0.99:
+            agent.opinion = 0.99
+            
+        if agent.opinion < 0.01:
+            agent.opinion = 0.01
 
                 
                 
     def bayesian_update(self):
-        
         x = self.opinion
-        
         if self.model.dynamics == "visit_dynamic" or self.model.dynamics == "time_dynamic":
-            
             # We reach this function with a probability of epsilon. So now we just need to use option qualities
             # to decide which hypothesis' evidence will be shown.
             # we have q_1 = model.option1_quality; hence q_0 = 1 - model.option1_quality
-            
             x = random.uniform(0,1)
-            
             if x < self.model.option1_quality:
                 delta = 1 - self.alpha
-                
             else: 
                 delta = self.alpha
                 
             if self.model.dynamics == "visit_dynamic":
-                if self.TIME > 50:
+                if self.TIME > self.model.dynamic_point:
                     if self.model.option1_quality > 0:
                         self.model.option1_quality -= 0.01
                 
@@ -149,10 +141,10 @@ class Agent(mesa.Agent):
         
     def switched_bayesian(self):
                 
-        if self.model.TIME < 100:
+        if self.model.TIME < self.model.dynamic_point:
             delta = 1 - self.model.alpha
             
-        if self.model.TIME >= 100:
+        if self.model.TIME >= self.model.dynamic_point:
             delta = self.model.alpha  
             self.model.option1_quality = 0
 
@@ -187,7 +179,6 @@ class Agent(mesa.Agent):
                 
         # Updating the time of the whole model running
         
-        self.realtime_consensus = compute_majority(self)
         self.TIME += 1
         
         self.model.option0_quality = 1 - self.model.option1_quality
@@ -197,7 +188,7 @@ class Agent(mesa.Agent):
 '''
 Model class:
 
-K: total number of class agents to call
+N: total number of class agents to call
 TIME: time to be updated for every step change in the agent class, rather than at the model level
 
 dynamics:
@@ -211,11 +202,11 @@ dynamics:
                     
 class Model(mesa.Model):
     
-    def __init__(self, K, n, w, alpha, epsilon, pooling = False, 
-                 uniform = False, dynamics = "none", measures = "none",
+    def __init__(self, N, k, w, alpha, epsilon, pooling = False, 
+                 uniform = False, dynamic_point = 1000, dynamics = "none", measures = "none",
                 s_proportion = 0, TIME = 0):
         
-        self.num_agents = K
+        self.num_agents = N
         self.TIME = TIME
         self.pooling = pooling
         self.uniform = uniform
@@ -223,10 +214,12 @@ class Model(mesa.Model):
         self.dynamics = dynamics
         self.measures = measures
         self.s_proportion = s_proportion
+        self.dynamic_point = dynamic_point
+        
         # Shuffle the agents so that they are all activated once per step, and this order is shuffled at each step.
         # This is representative of the 'well mixed' scenario
         self.schedule = mesa.time.RandomActivation(self)
-        self.pool_size = n
+        self.pool_size = k
         self.running = True
         
         
@@ -246,7 +239,8 @@ class Model(mesa.Model):
                               "Option 1 quality" : "option1_quality"},
             
             
-            agent_reporters = {"Opinion" : "opinion", "Majority" : compute_majority, "trueconsensus" : "realtime_consensus"} )
+            agent_reporters = {"Opinion" : "opinion", "Majority" : compute_majority,
+                               "Dynamic_Majority" : compute_dynamic_majority} )
         
         if measures == "stubborn":
         
@@ -279,7 +273,7 @@ class Model(mesa.Model):
         self.schedule.step()
         
         # Decreasing H_1's option quality by 0.1 for every full permutation of the agents (model step)
-        if self.TIME > 50:
+        if self.TIME > self.dynamic_point:
             if self.dynamics == "time_dynamic":
                 if self.option1_quality > 0:
                     self.option1_quality -= 0.01
