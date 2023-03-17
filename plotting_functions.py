@@ -66,30 +66,52 @@ def return_consensus_time(results_df, params, iterations, max_steps, variable_pa
                           variable_parameter2 = "none", reconvergence = False):
     
     '''    
-    Run simulation, as shown in plot_average_opinion description, to return results_df.
-    Except this time, we are interested in varying a parameter, so set the variable_parameter e.g, "w".
+
+    return_consensus_time:
+    
+    results_df: The results dataframe created by running the model with set parameters, params
+    params: the model parameters
+    iterations: the number of iterations that the model was run for
+    max_steps: the maximum number of steps that was set when the model was run
+    variable_parameters(1/2): up to 2 variable parameters to that the model was run for
+    reconvergence: If the case is dynamic, and we want to find the time to the second consensus, set as True
+
+    This function returns an array of shape [len(variable_parameter1), len(variable_parameter2)].
+    
+    So if there are no variable parameters set, it will return a single value. 
+    If there is one variable_parameter1, then it will return a 1 x len(variable_parameter1) array
+    If there are two variable params, then it will return shape [len(variable_parameter1), len(variable_parameter2)]
+    - This last version can be used to produce heatmap plots
+
     
     '''
     
     if variable_parameter1 == "none":
         data = []
+        
         for it in range(iterations):         
             # At the point at which the majority is at the consensus point (0.9), consensus is reached
             # We split the dataframe again by iteration
+            
             if reconvergence == False:   
                 results_it = results_df[(results_df.iteration == it) & (results_df.Majority >= 0.9)]
+                
                 if len(results_it) > 0:
                     consensus_time = results_it.Step.values[0]
+                    
                 else:
                     conensus_time = 1000 ## from start to dynamic point
                 
             # Reconvergence -> Dynamic Majority (proportion of opinions 0.1 or below)
             elif reconvergence == True:
                 results_it = results_df[(results_df.iteration == it) & (results_df.Dynamic_Majority >= 0.9)]
+                
                 if len(results_it) > 0:
                     consensus_time = results_it.Step.values[0]
+                    
                 else:
                     consensus_time = max_steps  ## from start to end of simulation
+                    
             data.append(consensus_time)
                 
         return np.mean(np.array(data), axis = 0)
@@ -100,11 +122,14 @@ def return_consensus_time(results_df, params, iterations, max_steps, variable_pa
     else:
         
         data_mat = np.empty(shape = (len(params[variable_parameter1]), len(params[variable_parameter2])) )
-        
+        std_mat = np.empty(shape = (len(params[variable_parameter1]), len(params[variable_parameter2])) )
+
         idx = -1
+        
         for p1 in params[variable_parameter1]:
             idx += 1
             consensus_avgs = []
+            std_arr = []
             results_p1 = results_df[results_df[variable_parameter1] == p1]
 
             for p2 in params[variable_parameter2]:                   
@@ -133,12 +158,21 @@ def return_consensus_time(results_df, params, iterations, max_steps, variable_pa
                             
                     data.append(consensus_time)      
       
-                                
+                # At this point we can compute the standard deviations:
+                # data is the array of consensus time values
+                std = np.std(np.array(data))
+                std_arr.append(std)
                 # Update the consenus average for fixed p1, for all p2
-                consensus_avgs.append(np.mean(np.array(data), axis = 0))
+                consensus_avgs.append(np.mean(np.array(data), axis = 0))               
+                                
+            std_mat[idx] = std_arr
             data_mat[idx] = consensus_avgs
             
-        return data_mat
+        return data_mat, std_mat
+    
+    
+    
+    
 
 
 def plot_gain(results_df1, results_df2, iterations, params, variable_parameter = "none", reconvergence = False):
@@ -187,6 +221,11 @@ def plot_gain(results_df1, results_df2, iterations, params, variable_parameter =
     plt.legend(loc = 5)
     
     return gain
+
+
+
+
+
 
         
 def plot_stepping_function(results_df, iterations, max_steps, switch_point):
