@@ -70,7 +70,6 @@ class Agent(mesa.Agent):
         # Weight is the same for each agent, since we are planning to use special case in SProdOp
         self.weight = w
         self.epsilon = epsilon
-        self.TIME = self.model.TIME
         self.alpha = alpha
         # Initialising the real time consesus reading 
     
@@ -122,11 +121,12 @@ class Agent(mesa.Agent):
             x = random.uniform(0,1)
             if x < self.model.option1_quality:
                 delta = 1 - self.alpha
+                
             else: 
                 delta = self.alpha
                 
             if self.model.dynamics == "visit_dynamic":
-                if self.TIME > self.model.dynamic_point:
+                if self.model.Step > self.model.dynamic_point:
                     if self.model.option1_quality > 0:
                         self.model.option1_quality -= 0.01
                 
@@ -141,10 +141,10 @@ class Agent(mesa.Agent):
         
     def switched_bayesian(self):
                 
-        if self.model.TIME < self.model.dynamic_point:
+        if self.model.Step < self.model.dynamic_point:
             delta = 1 - self.model.alpha
             
-        if self.model.TIME >= self.model.dynamic_point:
+        if self.model.Step >= self.model.dynamic_point:
             delta = self.model.alpha  
             self.model.option1_quality = 0
 
@@ -170,21 +170,17 @@ class Agent(mesa.Agent):
         # Pooling only occurs once all the agents have 'moved' simultaneously and had a chance of finding evidence, hence [-1]
 
         if self.model.pooling == True:
-            
-            if self == self.model.schedule.agents[-1]:
-                
+            if self == self.model.schedule.agents[-1]:                
                 pooled_agents = self.pool_agents()
                 self.SProdOp(pooled_agents)
                 
                 
         # Updating the time of the whole model running
-        
-        self.TIME += 1
-        
-        self.model.option0_quality = 1 - self.model.option1_quality
                 
-#         self.model.TIME += 1
-                                         
+        self.model.option0_quality = 1 - self.model.option1_quality
+        
+        self.model.TIME += 1
+                                             
 '''
 Model class:
 
@@ -215,6 +211,7 @@ class Model(mesa.Model):
         self.measures = measures
         self.s_proportion = s_proportion
         self.dynamic_point = dynamic_point
+        self.Step = 0
         
         # Shuffle the agents so that they are all activated once per step, and this order is shuffled at each step.
         # This is representative of the 'well mixed' scenario
@@ -232,7 +229,6 @@ class Model(mesa.Model):
         for i in range(self.num_agents):
             a = Agent(i, self, w, alpha, epsilon)
             self.schedule.add(a)
-#             self.TIME += 1
 
         self.datacollector = mesa.DataCollector(
             model_reporters = {"Average_opinion" : compute_average_opinion, "Option 0 quality" : "option0_quality",
@@ -240,7 +236,7 @@ class Model(mesa.Model):
             
             
             agent_reporters = {"Opinion" : "opinion", "Majority" : compute_majority,
-                               "Dynamic_Majority" : compute_dynamic_majority} )
+                               "Dynamic_Majority" : compute_dynamic_majority, "Time" : lambda t : t.model.Step} )
         
         if measures == "stubborn":
         
@@ -273,9 +269,9 @@ class Model(mesa.Model):
         self.schedule.step()
         
         # Decreasing H_1's option quality by 0.1 for every full permutation of the agents (model step)
-        if self.TIME > self.dynamic_point:
+        if self.Step > self.dynamic_point:
             if self.dynamics == "time_dynamic":
                 if self.option1_quality > 0:
                     self.option1_quality -= 0.01
-
-        self.TIME += 1
+                    
+        self.Step += 1
