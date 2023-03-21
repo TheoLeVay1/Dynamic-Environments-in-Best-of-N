@@ -60,7 +60,6 @@ def plot_average_opinion(results_df, iterations, max_steps):
     plt.xlim(0, max_steps)
     plt.ylim(-0.1, 1.1)
     
-    
 
 def return_consensus_time(results_df, params, iterations, max_steps, variable_parameter1 = "none",
                           variable_parameter2 = "none", reconvergence = False):
@@ -100,7 +99,7 @@ def return_consensus_time(results_df, params, iterations, max_steps, variable_pa
                     consensus_time = results_it.Step.values[0]
                     
                 else:
-                    conensus_time = 1000 ## from start to dynamic point
+                    consensus_time = params['dynamic_point'] ## from start to dynamic point
                 
             # Reconvergence -> Dynamic Majority (proportion of opinions 0.1 or below)
             elif reconvergence == True:
@@ -123,6 +122,7 @@ def return_consensus_time(results_df, params, iterations, max_steps, variable_pa
         
         data_mat = np.empty(shape = (len(params[variable_parameter1]), len(params[variable_parameter2])) )
         std_mat = np.empty(shape = (len(params[variable_parameter1]), len(params[variable_parameter2])) )
+        fail_mat = np.empty(shape = (len(params[variable_parameter1]), len(params[variable_parameter2])) )        
 
         idx = -1
         
@@ -130,6 +130,7 @@ def return_consensus_time(results_df, params, iterations, max_steps, variable_pa
             idx += 1
             consensus_avgs = []
             std_arr = []
+            fail_arr = []
             results_p1 = results_df[results_df[variable_parameter1] == p1]
 
             for p2 in params[variable_parameter2]:                   
@@ -137,15 +138,19 @@ def return_consensus_time(results_df, params, iterations, max_steps, variable_pa
                 # Split the dataframe into separate dataframes for each parameter value
                 results_p2 = results_p1[results_p1[variable_parameter2] == p2]
                 
-                for it in range(iterations):
+                # Recording the number of fails; i.e, not converging in time
+                failCount = 0
                 
+                for it in range(iterations):
+                                    
                     if reconvergence == False:   
                         results_it = results_p2[(results_p2.iteration == it) & (results_p2.Majority >= 0.9)]
                         
                         if len(results_it) > 0:
                             consensus_time = results_it.Step.values[0]
                         else:
-                            consensus_time = 1000 ## from start to dynamic point
+                            failCount += 1
+                            consensus_time = params['dynamic_point'] ## from start to dynamic point
 
                     # Reconvergence -> Dynamic Majority (proportion of opinions 0.1 or below)
                     elif reconvergence == True:
@@ -155,20 +160,20 @@ def return_consensus_time(results_df, params, iterations, max_steps, variable_pa
                             consensus_time = results_it.Step.values[0]
                         else:
                             consensus_time = max_steps  ## from start to end of simulation
+                            failCount += 1
                             
                     data.append(consensus_time)      
-      
-                # At this point we can compute the standard deviations:
-                # data is the array of consensus time values
+
                 std = np.std(np.array(data))
                 std_arr.append(std)
-                # Update the consenus average for fixed p1, for all p2
+                fail_arr.append(failCount)
                 consensus_avgs.append(np.mean(np.array(data), axis = 0))               
                                 
             std_mat[idx] = std_arr
             data_mat[idx] = consensus_avgs
+            fail_mat[idx] = fail_arr
             
-        return data_mat, std_mat
+        return data_mat, std_mat, fail_mat
     
     
     
@@ -251,10 +256,10 @@ def plot_stepping_function(results_df, iterations, max_steps, switch_point):
     
     plt.axvline( x = switch_point, color = '0.8', linestyle = 'dashed', label = "Average time of \n first consensus")
 
-    plt.plot(results_it.Step, results_df[results_df.iteration == 0]["Option 0 quality"],
+    plt.plot(results_it.Time, results_df[results_df.iteration == 0]["Option 0 quality"],
     color = 'blue', label = 'Option 0 Quality')
     
-    plt.plot(results_it.Step, results_df[results_df.iteration == 0]["Option 1 quality"],
+    plt.plot(results_it.Time, results_df[results_df.iteration == 0]["Option 1 quality"],
     color = 'gray', label = 'Option 1 Quality')
     
     plt.ylabel('Option quality')
