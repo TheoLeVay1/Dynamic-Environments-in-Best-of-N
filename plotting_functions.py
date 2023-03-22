@@ -88,6 +88,8 @@ def return_consensus_time(results_df, params, iterations, max_steps, variable_pa
     if variable_parameter1 == "none":
         data = []
         
+        failCount = 0 
+        
         for it in range(iterations):         
             # At the point at which the majority is at the consensus point (0.9), consensus is reached
             # We split the dataframe again by iteration
@@ -100,9 +102,10 @@ def return_consensus_time(results_df, params, iterations, max_steps, variable_pa
                     
                 else:
                     consensus_time = params['dynamic_point'] ## from start to dynamic point
+                    failCount += 1
                 
             # Reconvergence -> Dynamic Majority (proportion of opinions 0.1 or below)
-            elif reconvergence == True:
+            if reconvergence == True:
                 results_it = results_df[(results_df.iteration == it) & (results_df.Dynamic_Majority >= 0.9)]
                 
                 if len(results_it) > 0:
@@ -110,10 +113,14 @@ def return_consensus_time(results_df, params, iterations, max_steps, variable_pa
                     
                 else:
                     consensus_time = max_steps  ## from start to end of simulation
+                    failCount += 1
                     
             data.append(consensus_time)
+            
+        time = np.mean(np.array(data), axis = 0)
+        std = np.std(np.array(data))
                 
-        return np.mean(np.array(data), axis = 0)
+        return time, std, failCount
      
         
     # In the case of varying a parameter for sake of comparison, e.g. SProdOp parameter w
@@ -153,13 +160,13 @@ def return_consensus_time(results_df, params, iterations, max_steps, variable_pa
                             consensus_time = params['dynamic_point'] ## from start to dynamic point
 
                     # Reconvergence -> Dynamic Majority (proportion of opinions 0.1 or below)
-                    elif reconvergence == True:
+                    if reconvergence == True:
                         results_it = results_p2[(results_p2.iteration == it) & (results_p2.Dynamic_Majority >= 0.9)]
                         
                         if len(results_it) > 0:
                             consensus_time = results_it.Step.values[0]
                         else:
-                            consensus_time = max_steps  ## from start to end of simulation
+                            consensus_time = max_steps # - dynamic point?? ## from start to end of simulation
                             failCount += 1
                             
                     data.append(consensus_time)      
