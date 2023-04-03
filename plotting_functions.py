@@ -106,9 +106,11 @@ def return_consensus_time(results_df, params, iterations, max_steps, variable_pa
                 
             # Reconvergence -> Dynamic Majority (proportion of opinions 0.1 or below)
             if reconvergence == True:
-                results_it = results_df[(results_df.iteration == it) & (results_df.Dynamic_Majority >= 0.9)]
+                results_it = results_df[(results_df.iteration == it) & (results_df.Dynamic_Majority >= 0.9) 
+                                        & (results_df.Step > params['dynamic_point']) ]
                 
                 if len(results_it) > 0:
+                                        
                     consensus_time = results_it.Step.values[0]
                     
                 else:
@@ -161,7 +163,8 @@ def return_consensus_time(results_df, params, iterations, max_steps, variable_pa
 
                     # Reconvergence -> Dynamic Majority (proportion of opinions 0.1 or below)
                     if reconvergence == True:
-                        results_it = results_p2[(results_p2.iteration == it) & (results_p2.Dynamic_Majority >= 0.9)]
+                        results_it = results_p2[(results_p2.iteration == it) & (results_p2.Dynamic_Majority >= 0.9)
+                                               & (results_df.Step > params['dynamic_point']) ]
                         
                         if len(results_it) > 0:
                             consensus_time = results_it.Step.values[0]

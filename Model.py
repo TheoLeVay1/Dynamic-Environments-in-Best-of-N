@@ -7,6 +7,7 @@ import math
 import seaborn as sns
 from plotting_functions import *
 
+
 '''
 Definitions for model-wide parameters that is called later in self.datacollector model_reporters
 '''
@@ -170,10 +171,12 @@ class Agent(mesa.Agent):
         # Pooling only occurs once all the agents have 'moved' simultaneously and had a chance of finding evidence, hence [-1]
 
         if self.model.pooling == True:
-            if self == self.model.schedule.agents[-1]:                
+
+            y = random.uniform(0,1)
+            
+            if y < self.model.pool_rate:
                 pooled_agents = self.pool_agents()
                 self.SProdOp(pooled_agents)
-                
                 
         # Updating the time of the whole model running
                 
@@ -198,10 +201,11 @@ dynamics:
                     
 class Model(mesa.Model):
     
-    def __init__(self, N, k, w, alpha, epsilon, pooling = False, 
+    def __init__(self, N, k, w, alpha, pool_rate, epsilon, pooling = False, 
                  uniform = False, dynamic_point = 1000, dynamics = "none", measures = "none",
                 s_proportion = 0, TIME = 0):
-        
+
+        self.pool_rate = pool_rate
         self.num_agents = N
         self.TIME = TIME
         self.pooling = pooling
