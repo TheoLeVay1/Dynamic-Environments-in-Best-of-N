@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import math
 
 
-def plot_average_opinion(results_df, iterations, max_steps):
+def plot_average_opinion(results_df, iterations, max_steps, figsize):
     '''
     Run the simulation using params e.g.,
 
@@ -43,7 +43,7 @@ def plot_average_opinion(results_df, iterations, max_steps):
         std_arr.append(abs(std))
 
 
-    plt.figure()
+    plt.figure(figsize = figsize)
     plt.plot(results_it.Step, np.mean(data , axis = 0),
     color = 'black', label = 'Mean average opinion')
     
@@ -111,10 +111,10 @@ def return_consensus_time(results_df, params, iterations, max_steps, variable_pa
                 
                 if len(results_it) > 0:
                                         
-                    consensus_time = results_it.Step.values[0]
+                    consensus_time = results_it.Step.values[0] - params["dynamic_point"]
                     
                 else:
-                    consensus_time = max_steps  ## from start to end of simulation
+                    consensus_time = max_steps - params["dynamic_point"] 
                     failCount += 1
                     
             data.append(consensus_time)
@@ -167,9 +167,9 @@ def return_consensus_time(results_df, params, iterations, max_steps, variable_pa
                                                & (results_df.Step > params['dynamic_point']) ]
                         
                         if len(results_it) > 0:
-                            consensus_time = results_it.Step.values[0]
+                            consensus_time = results_it.Step.values[0] - params["dynamic_point"]
                         else:
-                            consensus_time = max_steps # - dynamic point?? ## from start to end of simulation
+                            consensus_time = max_steps - params["dynamic_point"] 
                             failCount += 1
                             
                     data.append(consensus_time)      
@@ -236,10 +236,6 @@ def plot_gain(results_df1, results_df2, iterations, params, variable_parameter =
     plt.legend(loc = 5)
     
     return gain
-
-
-
-
 
 
         

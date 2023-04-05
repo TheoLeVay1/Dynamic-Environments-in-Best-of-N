@@ -114,22 +114,29 @@ class Agent(mesa.Agent):
                 
                 
     def bayesian_update(self):
+        
         x = self.opinion
+        
         if self.model.dynamics == "visit_dynamic" or self.model.dynamics == "time_dynamic":
             # We reach this function with a probability of epsilon. So now we just need to use option qualities
             # to decide which hypothesis' evidence will be shown.
             # we have q_1 = model.option1_quality; hence q_0 = 1 - model.option1_quality
-            x = random.uniform(0,1)
-            if x < self.model.option1_quality:
+            
+            likelihood = random.uniform(0,1)
+            
+            # the likelihood of actually recieving evidence is controlled by another random variable. So if the option quality is 
+            # high, it is more likely.
+            
+            if likelihood <= self.model.option1_quality:
                 delta = 1 - self.alpha
                 
             else: 
                 delta = self.alpha
                 
             if self.model.dynamics == "visit_dynamic":
-                if self.model.Step > self.model.dynamic_point:
-                    if self.model.option1_quality > 0:
-                        self.model.option1_quality -= 0.01
+#                 if self.model.Step > self.model.dynamic_point:
+                if self.model.option1_quality > 0:
+                    self.model.option1_quality -= 0.01
                 
         else: 
             
@@ -167,6 +174,20 @@ class Agent(mesa.Agent):
                     
                 else:
                     self.bayesian_update()
+                    
+        inversion_likelihood = random.uniform(0,1)
+        
+        if self.opinion > 0.99:
+            self.opinion = 0.99
+            
+        if self.opinion < 0.01:
+            self.opinion = 0.01
+        
+        
+        # introducing random opinion inversion
+        if inversion_likelihood < self.model.inv:
+            
+            self.opinion = 1 - self.opinion
 
         # Pooling only occurs once all the agents have 'moved' simultaneously and had a chance of finding evidence, hence [-1]
 
@@ -182,8 +203,7 @@ class Agent(mesa.Agent):
                 
         self.model.option0_quality = 1 - self.model.option1_quality
         
-        self.model.TIME += 1
-                                             
+        
 '''
 Model class:
 
@@ -201,13 +221,14 @@ dynamics:
                     
 class Model(mesa.Model):
     
-    def __init__(self, N, k, w, alpha, pool_rate, epsilon, pooling = False, 
+    def __init__(self, N, k, w, alpha, pool_rate, epsilon, inversion_rate = 0, pooling = False, 
                  uniform = False, dynamic_point = 1000, dynamics = "none", measures = "none",
                 s_proportion = 0, TIME = 0):
 
         self.pool_rate = pool_rate
         self.num_agents = N
         self.TIME = TIME
+        self.inv = inversion_rate
         self.pooling = pooling
         self.uniform = uniform
         self.alpha = alpha
@@ -255,11 +276,11 @@ class Model(mesa.Model):
 
                 if agent in stubborn_pos_pool:
                     agent.stubborn = True
-                    agent.opinion = 0.9
+                    agent.opinion = 0.95
 
                 if agent in stubborn_neg_pool:
                     agent.stubborn = True
-                    agent.opinion = 0.1
+                    agent.opinion = 0.05
                     
         else: 
             
