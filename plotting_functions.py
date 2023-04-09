@@ -5,6 +5,67 @@ import matplotlib.pyplot as plt
 import math
 
 
+def plot_average_majority(results_df, iterations, max_steps, figsize, version = "convergence"):
+    
+    data = []
+    data1 = []
+    
+    for it in range(iterations):
+        results_it = results_df[results_df.iteration == it]
+#         results_it = results_it.drop_duplicates(subset = ['Step'], keep = 'first')
+        data.append(results_it.Majority)
+        data1.append(results_it.Dynamic_Majority)
+        
+    data = np.array(data)
+    data1 = np.array(data1)
+    
+    std_arr = []
+    for row in range(data.shape[1]):
+        row_data = data[:, row]
+        std = np.std(row_data)
+        std_arr.append(abs(std))
+        
+    std_arr1 = []
+    for row in range(data1.shape[1]):
+        row_data1 = data1[:, row]
+        std = np.std(row_data1)
+        std_arr1.append(abs(std))
+        
+    plt.figure(figsize = figsize)
+
+        
+    plt.fill_between(results_it.Step, np.mean(data, axis = 0) + std_arr,
+     np.mean(data, axis = 0) - std_arr, color = 'black', alpha = 0.5, label = 'Standard deviation')
+    
+    plt.fill_between(results_it.Step, np.mean(data1, axis = 0) + std_arr1,
+     np.mean(data1, axis = 0) - std_arr1, color = 'red', alpha = 0.5, label = 'Secondary Standard deviation')
+    
+       
+    plt.plot(results_it.Step, np.mean(data, axis = 0), color = 'black', label = 'Mean majority')
+    plt.plot(results_it.Step, np.mean(data1, axis = 0), color = 'red', label = 'Secondary mean majority')
+    
+    
+    # The option quality change is consistent between iterations (Unless visit dynamic***)
+    plt.plot(results_it.Step, results_df[results_df.iteration == 0]["Option 1 quality"],
+        color = 'blue', label = 'Stepping function')
+    
+    # Plotting the consensus threshold
+    plt.axhline( y = 0.9, linestyle = 'dashed', label = 'Consensus threshold')
+#     plt.axhline( y = 0.1, linestyle = 'dashed', label = '$H_0$ Consensus threshold')
+    
+    plt.legend(loc = 5)
+    plt.xlim(0, max_steps)
+    plt.ylim(-0.1, 1.1)
+    
+    plt.xlabel('Step')
+    plt.ylabel('Majority')
+    
+    plt.xticks(fontsize = 11)
+    plt.yticks(fontsize = 11)
+    
+    
+    
+
 def plot_average_opinion(results_df, iterations, max_steps, figsize):
     '''
     Run the simulation using params e.g.,
@@ -60,11 +121,33 @@ def plot_average_opinion(results_df, iterations, max_steps, figsize):
     plt.xlim(0, max_steps)
     plt.ylim(-0.1, 1.1)
     
+    
+# def return_adaptation_time(results_df, params, iterations, max_steps):
+    
+#     ''''
+#     Function to return the time when the system starts to reconverge. Because of variability, I'm only going to count when there
+#     is a negative difference in majority between three time steps
+    
+#     '''''
+    
+#     # We only want to deal with after the dynamic point
+#     results_df = results_df[results_df.Step > params["dynamic_point"]]
+     
+#     for it in range(iterations):
+        
+#         results_it = results_df[results_df.iteration == it]
+        
+#         # now let's isolate the average opinion
+        
+#         results_it.Average_opinion
+     
 
 def return_consensus_time(results_df, params, iterations, max_steps, variable_parameter1 = "none",
-                          variable_parameter2 = "none", reconvergence = False):
+                          variable_parameter2 = "none", reconvergence = False, visit_dep = False):
     
     '''    
+    
+    VISIT DEPENDENT CASE ONLY WORKS WHEN RECOVERGENCE = TRUE AND THERE ARE NO VARIABLE PARAMETERS
 
     return_consensus_time:
     
@@ -85,45 +168,99 @@ def return_consensus_time(results_df, params, iterations, max_steps, variable_pa
     
     '''
     
+    
     if variable_parameter1 == "none":
-        data = []
         
-        failCount = 0 
+        if reconvergence == False:
         
-        for it in range(iterations):         
-            # At the point at which the majority is at the consensus point (0.9), consensus is reached
-            # We split the dataframe again by iteration
-            
-            if reconvergence == False:   
+            data = []
+            failCount = 0 
+
+            for it in range(iterations):         
+                # At the point at which the majority is at the consensus point (0.9), consensus is reached
+                # We split the dataframe again by iteration
+
                 results_it = results_df[(results_df.iteration == it) & (results_df.Majority >= 0.9)]
-                
+
                 if len(results_it) > 0:
                     consensus_time = results_it.Step.values[0]
-                    
+
                 else:
                     consensus_time = params['dynamic_point'] ## from start to dynamic point
                     failCount += 1
-                
-            # Reconvergence -> Dynamic Majority (proportion of opinions 0.1 or below)
-            if reconvergence == True:
-                results_it = results_df[(results_df.iteration == it) & (results_df.Dynamic_Majority >= 0.9) 
-                                        & (results_df.Step > params['dynamic_point']) ]
-                
-                if len(results_it) > 0:
-                                        
-                    consensus_time = results_it.Step.values[0] - params["dynamic_point"]
-                    
-                else:
-                    consensus_time = max_steps - params["dynamic_point"] 
-                    failCount += 1
-                    
-            data.append(consensus_time)
+                # Reconvergence -> Dynamic Majority (proportion of opinions 0.1 or below)
+
+                data.append(consensus_time)
+
+            time = np.mean(np.array(data), axis = 0)
+            std = np.std(np.array(data))
+
+            return time, std, failCount
+        
+        if reconvergence == True:
             
-        time = np.mean(np.array(data), axis = 0)
-        std = np.std(np.array(data))
+            data = []
+            data1 = []
+            failCount = 0 
+            failCount1 = 0
+            
+            for it in range(iterations):
+                                               
+                results_it = results_df[(results_df.iteration == it) & (results_df.Majority >= 0.9)]
+
+                if visit_dep == True:
+                    results_it = results_it[results_it['Option 1 quality'] >= 0.5]
+            
+                if len(results_it) > 0:
+                    consensus_time = results_it.Step.values[0]
+
+                else:
+                    
+                    if visit_dep == True:
+                        # longwinded way to get the first step where the option qualities have switched >
+                        switch_point = results_df[(results_df.iteration == it) & results_df['Option 1 quality' > 0.5]].Step.values[0]
+                        consensus_time = switch_point
+                    
+                    else:
+                        consensus_time = params['dynamic_point'] ## from start to dynamic point
+                        
+                    failCount += 1
+
+                # AND NOW TO INCLUDE THE SECOND TIME TO CONSENSUS
+                    
+                results_it1 = results_df[(results_df.iteration == it) & (results_df.Dynamic_Majority >= 0.9)
+                                         & (results_df.Step > params['dynamic_point'])]
+
+                if visit_dep == True:
+                    results_it1 = results_it1[results_it1['Option 1 quality'] < 0.5]
                 
-        return time, std, failCount
-     
+                if len(results_it1) > 0:
+                    if visit_dep == True:
+                        consensus_time1 = results_it1.Step.values[0] - switch_point
+                    else: 
+                        consensus_time1 = results_it1.Step.values[0] - params["dynamic_point"]
+                        
+                else:
+                    if visit_dep == True:
+                        consensus_time1 = max_steps - switch_point
+                        
+                    else:
+                        consensus_time1 = max_steps - params["dynamic_point"]
+                        
+                    failCount1 += 1
+
+                data.append(consensus_time)
+                data1.append(consensus_time1)
+
+            time = np.mean(np.array(data), axis = 0)
+            time1 = np.mean(np.array(data1), axis = 0)
+
+            std = np.std(np.array(data))
+            std1 = np.std(np.array(data1))
+
+            total_time = time + time1
+
+            return time, std, failCount, time1, std1, failCount1, total_time
         
     # In the case of varying a parameter for sake of comparison, e.g. SProdOp parameter w
         
