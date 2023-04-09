@@ -72,7 +72,11 @@ class Agent(mesa.Agent):
         self.weight = w
         self.epsilon = epsilon
         self.alpha = alpha
+        
         # Initialising the real time consesus reading 
+        
+        # Initialising the agents as NOT stubborn
+        self.stubborn = False
     
     def pool_agents(self):
         # Return array of [agent and (n) neighbouring agents]
@@ -105,11 +109,42 @@ class Agent(mesa.Agent):
                 if agent.stubborn != True:
                     agent.opinion = c_x
                     
-        if agent.opinion > 0.99:
-            agent.opinion = 0.99
+                    if agent.opinion > 0.99:
+                        agent.opinion = 0.99
+
+                    if agent.opinion < 0.01:
+                        agent.opinion = 0.01
+
             
-        if agent.opinion < 0.01:
-            agent.opinion = 0.01
+    def LogOp(self, pooled_agents):        
+        # SProdOp from combining opinion pooling paper for w = const
+
+        weighted_ops = []
+        complement = []
+        
+        for agent in pooled_agents:
+                        
+            weighted_ops.append( agent.opinion ** agent.weight )
+            complement.append( (1 - np.asarray(agent.opinion)) ** agent.weight )
+            
+        c_x = np.prod(weighted_ops) / (np.prod(weighted_ops) + np.prod(complement))
+            
+            
+        if math.isnan(c_x) != True:
+            for agent in pooled_agents:
+                # We do not want to change the opinions of stubborn agents, however we want them 
+                # to change the opinions of others
+                if agent.stubborn != True:
+                    agent.opinion = c_x
+                    
+                    if agent.opinion > 0.99:
+                        agent.opinion = 0.99
+
+                    if agent.opinion < 0.01:
+                        agent.opinion = 0.01
+            
+        
+        
 
                 
                 
@@ -117,7 +152,11 @@ class Agent(mesa.Agent):
         
         x = self.opinion
         
-        if self.model.dynamics == "visit_dynamic" or self.model.dynamics == "time_dynamic":
+#         if self.model.dynamics == "visit_dynamic" or self.model.dynamics == "time_dynamic":
+
+        if self.model.dynamics == self.model.dynamics == "time_dynamic":
+
+
             # We reach this function with a probability of epsilon. So now we just need to use option qualities
             # to decide which hypothesis' evidence will be shown.
             # we have q_1 = model.option1_quality; hence q_0 = 1 - model.option1_quality
@@ -133,10 +172,21 @@ class Agent(mesa.Agent):
             else: 
                 delta = self.alpha
                 
-            if self.model.dynamics == "visit_dynamic":
+#             if self.model.dynamics == "visit_dynamic":
 #                 if self.model.Step > self.model.dynamic_point:
-                if self.model.option1_quality > 0:
-                    self.model.option1_quality -= 0.01
+#                 if self.model.option1_quality > 0:
+#                     self.model.option1_quality -= 0.01
+            
+        if self.model.dynamics == "visit_dynamic":
+            
+            if self.model.option1_quality >= 0.5:
+                delta = 1 - self.alpha
+                
+            else:
+                delta = self.alpha
+                
+            if self.model.option1_quality > 0:
+                self.model.option1_quality -= 0.01
                 
         else: 
             
@@ -197,7 +247,12 @@ class Agent(mesa.Agent):
             
             if y < self.model.pool_rate:
                 pooled_agents = self.pool_agents()
-                self.SProdOp(pooled_agents)
+                
+                if self.model.logOp == True:
+                    self.LogOp(pooled_agents)
+                    
+                else:
+                    self.SProdOp(pooled_agents)
                 
         # Updating the time of the whole model running
                 
@@ -208,12 +263,11 @@ class Agent(mesa.Agent):
 Model class:
 
 N: total number of class agents to call
-TIME: time to be updated for every step change in the agent class, rather than at the model level
 
 dynamics:
 
 "none"
-"switching": dynamic switching at time (=200 TIME)
+"switching": dynamic switching at dynamic_point
 "time_dynamic": option quality changes as a function of time 
 "visit_dynamic": option quality changes as a function of agent visits
 
@@ -223,11 +277,10 @@ class Model(mesa.Model):
     
     def __init__(self, N, k, w, alpha, pool_rate, epsilon, inversion_rate = 0, pooling = False, 
                  uniform = False, dynamic_point = 1000, dynamics = "none", measures = "none",
-                s_proportion = 0, TIME = 0):
+                s_proportion = 0, logOp = False, stub_w = 5):
 
         self.pool_rate = pool_rate
         self.num_agents = N
-        self.TIME = TIME
         self.inv = inversion_rate
         self.pooling = pooling
         self.uniform = uniform
@@ -237,6 +290,8 @@ class Model(mesa.Model):
         self.s_proportion = s_proportion
         self.dynamic_point = dynamic_point
         self.Step = 0
+        
+        self.logOp = logOp
         
         # Shuffle the agents so that they are all activated once per step, and this order is shuffled at each step.
         # This is representative of the 'well mixed' scenario
@@ -252,6 +307,7 @@ class Model(mesa.Model):
     
 
         for i in range(self.num_agents):
+            # Initialise the agents
             a = Agent(i, self, w, alpha, epsilon)
             self.schedule.add(a)
 
@@ -265,28 +321,30 @@ class Model(mesa.Model):
         
         if measures == "stubborn":
         
-            # Let's say we want 10% stubborn agents in either direction
             n_stubborn = int(self.num_agents * s_proportion)
-            # Then we can find the pool of stubborn agents
-            stubborn_pos_pool = self.schedule.agents[0:int(n_stubborn/2)]
-            stubborn_neg_pool = self.schedule.agents[int(n_stubborn/2):n_stubborn]
 
-            for agent in self.schedule.agents:
-                agent.stubborn = False
+            if n_stubborn > 0:
+                # To stop, when there are no stubborn agents, the model giving one stubborn agent
+                
+                stubborn_pos_pool = self.schedule.agents[0:int(n_stubborn/2)]
+                stubborn_neg_pool = self.schedule.agents[int(n_stubborn/2):n_stubborn]
 
-                if agent in stubborn_pos_pool:
-                    agent.stubborn = True
-                    agent.opinion = 0.95
-
-                if agent in stubborn_neg_pool:
-                    agent.stubborn = True
-                    agent.opinion = 0.05
+                for agent in self.schedule.agents:
                     
-        else: 
-            
-            for agent in self.schedule.agents:
-                agent.stubborn = False
-        
+                    if agent in stubborn_pos_pool:
+                        agent.stubborn = True
+                        agent.opinion = 0.95
+
+                        if logOp == True:
+                            agent.weight = stub_w
+
+                    if agent in stubborn_neg_pool:
+                        agent.stubborn = True
+                        agent.opinion = 0.05
+
+                        if logOp == True:
+                            agent.weight = stub_w
+
 
     def step(self):
         
