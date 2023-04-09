@@ -1,0 +1,1 @@
+{'N': 50, 'k': 3, 'w': 1, 'alpha': 0.05, 'epsilon': 0.02, 'inversion_rate': 0, 'pooling': True, 'pool_rate': 0.015, 'uniform': False, 'dynamics': 'switching', 'measures': 'stubborn', 'dynamic_point': 400, 's_proportion': 0.2, 'logOp': True, 'stub_w': 10}
