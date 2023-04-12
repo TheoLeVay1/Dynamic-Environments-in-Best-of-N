@@ -1,0 +1,1 @@
+{'N': 50, 'k': 10, 'w': 1.0, 'alpha': 0.05, 'epsilon': 0.02, 'inversion_rate': 0, 'pooling': True, 'pool_rate': 0.015, 'uniform': False, 'dynamics': 'visit_dynamic', 'measures': 'none', 'dynamic_point': 400, 's_proportion': 0, 'logOp': False, 'stub_w': 1.0} k , [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] w  [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]

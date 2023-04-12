@@ -1,0 +1,1 @@
+{'N': 50, 'k': 3, 'w': 1, 'alpha': 0.05, 'epsilon': 0.02, 'inversion_rate': 0, 'pooling': True, 'pool_rate': 0.015, 'uniform': False, 'dynamics': 'switching', 'measures': 'stubborn', 'dynamic_point': 400, 's_proportion': 0.2, 'logOp': True, 'stub_w': 5} stub , [0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2] w  [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]

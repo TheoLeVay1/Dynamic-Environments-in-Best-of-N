@@ -186,7 +186,7 @@ class Agent(mesa.Agent):
                 delta = self.alpha
                 
             if self.model.option1_quality > 0:
-                self.model.option1_quality -= 0.01
+                self.model.option1_quality -= 0.005
                 
         else: 
             

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import math
 
 
-def plot_average_majority(results_df, iterations, max_steps, figsize, version = "convergence"):
+def plot_average_majority(results_df, iterations, max_steps, figsize, version = "convergence", normal = True, dynamic = True):
     
     data = []
     data1 = []
@@ -34,23 +34,23 @@ def plot_average_majority(results_df, iterations, max_steps, figsize, version = 
     plt.figure(figsize = figsize)
 
         
-    plt.fill_between(results_it.Step, np.mean(data, axis = 0) + std_arr,
-     np.mean(data, axis = 0) - std_arr, color = 'black', alpha = 0.5, label = 'Standard deviation')
-    
-    plt.fill_between(results_it.Step, np.mean(data1, axis = 0) + std_arr1,
-     np.mean(data1, axis = 0) - std_arr1, color = 'red', alpha = 0.5, label = 'Secondary Standard deviation')
-    
-       
-    plt.plot(results_it.Step, np.mean(data, axis = 0), color = 'black', label = 'Mean majority')
-    plt.plot(results_it.Step, np.mean(data1, axis = 0), color = 'red', label = 'Secondary mean majority')
-    
-    
+    if normal == True:
+        plt.fill_between(results_it.Step, np.mean(data, axis = 0) + std_arr,
+         np.mean(data, axis = 0) - std_arr, color = 'black', alpha = 0.3, label = 'Standard deviation')
+        plt.plot(results_it.Step, np.mean(data, axis = 0), color = 'black', label = 'Mean majority')
+        
+    if dynamic == True:
+        plt.fill_between(results_it.Step, np.mean(data1, axis = 0) + std_arr1,
+        np.mean(data1, axis = 0) - std_arr1, color = 'red', alpha = 0.3, label = 'Secondary Standard deviation')
+        plt.plot(results_it.Step, np.mean(data1, axis = 0), color = 'red', label = 'Secondary mean majority')
+      
+
     # The option quality change is consistent between iterations (Unless visit dynamic***)
     plt.plot(results_it.Step, results_df[results_df.iteration == 0]["Option 1 quality"],
         color = 'blue', label = 'Stepping function')
     
     # Plotting the consensus threshold
-    plt.axhline( y = 0.9, linestyle = 'dashed', label = 'Consensus threshold')
+    plt.axhline( y = 0.9, color = 'red', linestyle = 'dashed', label = 'Consensus threshold')
 #     plt.axhline( y = 0.1, linestyle = 'dashed', label = '$H_0$ Consensus threshold')
     
     plt.legend(loc = 5)
@@ -199,70 +199,97 @@ def return_consensus_time(results_df, params, iterations, max_steps, variable_pa
         
         if reconvergence == True:
             
-            data = []
-            data1 = []
-            failCount = 0 
-            failCount1 = 0
+            if visit_dep == False:
             
-            for it in range(iterations):
-                                               
-                results_it = results_df[(results_df.iteration == it) & (results_df.Majority >= 0.9)]
+                data = []
+                data1 = []
+                failCount = 0 
+                failCount1 = 0
 
-                if visit_dep == True:
-                    results_it = results_it[results_it['Option 1 quality'] >= 0.5]
-            
-                if len(results_it) > 0:
-                    consensus_time = results_it.Step.values[0]
+                for it in range(iterations):
 
-                else:
-                    
-                    if visit_dep == True:
-                        # longwinded way to get the first step where the option qualities have switched >
-                        switch_point = results_df[(results_df.iteration == it) & results_df['Option 1 quality' > 0.5]].Step.values[0]
-                        consensus_time = switch_point
-                    
+                    results_it = results_df[(results_df.iteration == it) & (results_df.Majority >= 0.9)]
+
+                    if len(results_it) > 0:
+                        consensus_time = results_it.Step.values[0]
+
                     else:
                         consensus_time = params['dynamic_point'] ## from start to dynamic point
-                        
-                    failCount += 1
+                        failCount += 1
 
-                # AND NOW TO INCLUDE THE SECOND TIME TO CONSENSUS
-                    
-                results_it1 = results_df[(results_df.iteration == it) & (results_df.Dynamic_Majority >= 0.9)
-                                         & (results_df.Step > params['dynamic_point'])]
+                    # AND NOW TO INCLUDE THE SECOND TIME TO CONSENSUS
 
-                if visit_dep == True:
-                    results_it1 = results_it1[results_it1['Option 1 quality'] < 0.5]
-                
-                if len(results_it1) > 0:
-                    if visit_dep == True:
-                        consensus_time1 = results_it1.Step.values[0] - switch_point
-                    else: 
+                    results_it1 = results_df[(results_df.iteration == it) & (results_df.Dynamic_Majority >= 0.9)
+                                             & (results_df.Step > params['dynamic_point'])]
+
+                    if len(results_it1) > 0:
                         consensus_time1 = results_it1.Step.values[0] - params["dynamic_point"]
-                        
-                else:
-                    if visit_dep == True:
-                        consensus_time1 = max_steps - switch_point
-                        
+
                     else:
                         consensus_time1 = max_steps - params["dynamic_point"]
-                        
-                    failCount1 += 1
+                        failCount1 += 1
 
-                data.append(consensus_time)
-                data1.append(consensus_time1)
+                    data.append(consensus_time)
+                    data1.append(consensus_time1)
 
-            time = np.mean(np.array(data), axis = 0)
-            time1 = np.mean(np.array(data1), axis = 0)
+                time = np.mean(np.array(data), axis = 0)
+                time1 = np.mean(np.array(data1), axis = 0)
 
-            std = np.std(np.array(data))
-            std1 = np.std(np.array(data1))
+                std = np.std(np.array(data))
+                std1 = np.std(np.array(data1))
 
-            total_time = time + time1
+                total_time = time + time1
 
-            return time, std, failCount, time1, std1, failCount1, total_time
+                return time, std, failCount, time1, std1, failCount1, total_time
+            
+            if visit_dep == True:
+                
+                data = []
+                data1 = []
+                failCount = 0 
+                failCount1 = 0
+
+                for it in range(iterations):
+                            
+                    results_it = results_df[(results_df.iteration == it) & (results_df.Majority >= 0.9)]
+                    
+                    # the switch point is the first step when the option qualities change value, i.e, hypotheses switch
+                    switch_point = results_df[(results_df.iteration == it) & (results_df['Option 1 quality'] < 0.5)].Step.values[0]
+
+                    if len(results_it) > 0:
+                        consensus_time = results_it.Step.values[0]
+
+                    else:
+                        consensus_time = switch_point ## from start to switch point
+                        failCount += 1
+
+                    # AND NOW TO INCLUDE THE SECOND TIME TO CONSENSUS
+
+                    results_it1 = results_df[(results_df.iteration == it) & (results_df.Dynamic_Majority >= 0.9)
+                                             & (results_df.Step > switch_point)]
+
+                    if len(results_it1) > 0:
+                        consensus_time1 = results_it1.Step.values[0] - switch_point
+
+                    else:
+                        consensus_time1 = max_steps - switch_point
+                        failCount1 += 1
+
+                    data.append(consensus_time)
+                    data1.append(consensus_time1)
+
+                time = np.mean(np.array(data), axis = 0)
+                time1 = np.mean(np.array(data1), axis = 0)
+
+                std = np.std(np.array(data))
+                std1 = np.std(np.array(data1))
+
+                total_time = time + time1
+
+                return time, std, failCount, time1, std1, failCount1, total_time
+            
         
-    # In the case of varying a parameter for sake of comparison, e.g. SProdOp parameter w
+# In the case of varying a parameter for sake of comparison, e.g. SProdOp parameter w
         
     else:
         
