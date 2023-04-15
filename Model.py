@@ -154,7 +154,7 @@ class Agent(mesa.Agent):
         
 #         if self.model.dynamics == "visit_dynamic" or self.model.dynamics == "time_dynamic":
 
-        if self.model.dynamics == self.model.dynamics == "time_dynamic":
+        if self.model.dynamics == "time_dynamic" or "visit_dynamic":
 
 
             # We reach this function with a probability of epsilon. So now we just need to use option qualities
@@ -177,18 +177,18 @@ class Agent(mesa.Agent):
 #                 if self.model.option1_quality > 0:
 #                     self.model.option1_quality -= 0.01
             
-        if self.model.dynamics == "visit_dynamic":
+            if self.model.dynamics == "visit_dynamic":
             
-            if self.model.option1_quality >= 0.5:
-                delta = 1 - self.alpha
+#             if self.model.option1_quality >= 0.5:
+#                 delta = 1 - self.alpha
                 
-            else:
-                delta = self.alpha
+#             else:
+#                 delta = self.alpha
                 
-            if self.model.option1_quality > 0:
-                self.model.option1_quality -= 0.005
+                if self.model.option1_quality > 0:
+                    self.model.option1_quality -= 0.005
                 
-        else: 
+        if self.model.dynamics == "none": 
             
             delta = 1 - self.alpha
 
