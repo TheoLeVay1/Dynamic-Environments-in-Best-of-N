@@ -5,10 +5,13 @@ import matplotlib.pyplot as plt
 import math
 
 
-def plot_average_majority(results_df, iterations, max_steps, figsize, version = "convergence", normal = True, dynamic = True):
+def plot_average_majority(results_df, iterations, max_steps, figsize, version = "convergence", normal = True, 
+                          dynamic = True, visit = False):
     
     data = []
     data1 = []
+    switch_points = []
+    quality = []
     
     for it in range(iterations):
         results_it = results_df[results_df.iteration == it]
@@ -16,6 +19,13 @@ def plot_average_majority(results_df, iterations, max_steps, figsize, version = 
         data.append(results_it.Majority)
         data1.append(results_it.Dynamic_Majority)
         
+        if visit == True:
+            quality.append(results_it["Option 1 quality"])
+            switch_point = results_df[results_df['Option 1 quality'] < 0.5].Step.values[0]
+            switch_points.append(switch_point)
+        
+    mean_switch_point = np.mean(switch_points)
+    quality_arr = np.array(quality)
     data = np.array(data)
     data1 = np.array(data1)
     
@@ -36,37 +46,45 @@ def plot_average_majority(results_df, iterations, max_steps, figsize, version = 
         
     if normal == True:
         plt.fill_between(results_it.Step, np.mean(data, axis = 0) + std_arr,
-         np.mean(data, axis = 0) - std_arr, color = 'black', alpha = 0.3, label = 'Standard deviation')
-        plt.plot(results_it.Step, np.mean(data, axis = 0), color = 'black', label = 'Mean majority')
+         np.mean(data, axis = 0) - std_arr, color = 'black', alpha = 0.3, label = r'$\sigma_1$')
+        plt.plot(results_it.Step, np.mean(data, axis = 0), color = 'black', label = r'$\bar{M}_1$')
         
     if dynamic == True:
         plt.fill_between(results_it.Step, np.mean(data1, axis = 0) + std_arr1,
-        np.mean(data1, axis = 0) - std_arr1, color = 'red', alpha = 0.3, label = 'Secondary Standard deviation')
-        plt.plot(results_it.Step, np.mean(data1, axis = 0), color = 'red', label = 'Secondary mean majority')
+        np.mean(data1, axis = 0) - std_arr1, color = 'red', alpha = 0.3, label = r'$\sigma_2$')
+        plt.plot(results_it.Step, np.mean(data1, axis = 0), color = 'red', label = r'$\bar{M}_2$')
       
 
     # The option quality change is consistent between iterations (Unless visit dynamic***)
-    plt.plot(results_it.Step, results_df[results_df.iteration == 0]["Option 1 quality"],
-        color = 'blue', label = 'Stepping function')
+    
+    if visit == True:
+        plt.plot(results_it.Step, np.mean(quality_arr, axis = 0),
+        color = 'blue', label = r'$\bar{\rho}_1$')
+        plt.axvline(x = mean_switch_point, linestyle = 'dashed', label = r'Mean switch point, $T_{\rho_2 > \rho_1}$')    
+        
+    else:    
+        plt.plot(results_it.Step, results_df[results_df.iteration == 0]["Option 1 quality"],
+            color = 'blue', label = r'$\rho_1$')
     
     # Plotting the consensus threshold
-    plt.axhline( y = 0.9, color = 'red', linestyle = 'dashed', label = 'Consensus threshold')
+    plt.axhline( y = 0.9, color = 'red', linestyle = 'dashed', label = r'$C_i$')
 #     plt.axhline( y = 0.1, linestyle = 'dashed', label = '$H_0$ Consensus threshold')
     
     plt.legend(loc = 5)
     plt.xlim(0, max_steps)
     plt.ylim(-0.1, 1.1)
     
-    plt.xlabel('Step')
-    plt.ylabel('Majority')
+    plt.xlabel('Step', fontsize = 12)
+    plt.ylabel('Majority', fontsize = 12)
     
-    plt.xticks(fontsize = 11)
-    plt.yticks(fontsize = 11)
+    plt.xticks(fontsize = 12)
+    plt.yticks(fontsize = 12)
     
+  
     
-    
+  
 
-def plot_average_opinion(results_df, iterations, max_steps, figsize):
+def plot_average_opinion(results_df, iterations, max_steps, figsize, visit = False):
     '''
     Run the simulation using params e.g.,
 
@@ -88,13 +106,23 @@ def plot_average_opinion(results_df, iterations, max_steps, figsize):
     '''
 
     data = []
-
+    quality = []
+    switch_points = []
+    
     for it in range(iterations):
         results_it = results_df[results_df.iteration == it]
         data.append(results_it.Average_opinion)
+        
+        if visit == True:
+            quality.append(results_it["Option 1 quality"])
+            switch_point = results_df[results_df['Option 1 quality'] < 0.5].Step.values[0]
+            switch_points.append(switch_point)
+        
+    mean_switch_point = np.mean(switch_points)
 
     # Convert from list to np array
     data = np.array(data)
+    quality_arr = np.array(quality)
 
     # For standard deviation plot, work out standard deviation at each step
     std_arr = []
@@ -106,20 +134,30 @@ def plot_average_opinion(results_df, iterations, max_steps, figsize):
 
     plt.figure(figsize = figsize)
     plt.plot(results_it.Step, np.mean(data , axis = 0),
-    color = 'black', label = 'Mean average opinion')
+    color = 'black', label = r'Mean average opinion, $\bar{x}$')
     
     # Plotting the range of the results by standard deviations
     plt.fill_between(results_it.Step, np.mean(data, axis = 0) + std_arr,
-     np.mean(data, axis = 0) - std_arr, color = 'grey', label = 'Standard deviation')
+     np.mean(data, axis = 0) - std_arr, color = 'grey', label = r'Standard deviation, $\sigma$')
     
     # Now we want to plot the actual, stepping function of option quality
-    plt.plot(results_it.Step, results_df[results_df.iteration == 0]["Option 1 quality"],
-    color = 'blue', label = 'Stepping function')
+#     plt.plot(results_it.Step, results_df[results_df.iteration == 0]["Option 1 quality"],
+#     color = 'blue', label = 'Stepping function')
 
-
-    plt.legend(loc = 5)
+    if visit == True:
+        plt.plot(results_it.Step, np.mean(quality_arr, axis = 0),
+        color = 'blue', label = r'Mean option 1 quality, $\bar{\rho}_1$')
+        
+        plt.axvline(x = mean_switch_point, linestyle = 'dashed', label = r'Mean switch point, $\bar{T}_{\rho_2 > \rho_1}$')
+        
+    else: 
+        plt.plot(results_it.Step, results_it["Option 1 quality"],
+        color = 'blue', label = r'Option 1 quality, $\rho_1$')
+        
+    plt.legend(loc = 5, fontsize = 10)
     plt.xlim(0, max_steps)
     plt.ylim(-0.1, 1.1)
+    plt.xlabel('Steps', fontsize = 12)
     
     
 # def return_adaptation_time(results_df, params, iterations, max_steps):

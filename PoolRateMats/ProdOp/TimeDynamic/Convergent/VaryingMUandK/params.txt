@@ -1,0 +1,1 @@
+{'N': 50, 'k': 6, 'w': 1, 'alpha': 0.05, 'epsilon': 0.02, 'inversion_rate': 0.01, 'pooling': True, 'pool_rate': 0.015, 'uniform': False, 'dynamics': 'time_dynamic', 'measures': 'none', 'dynamic_point': 400, 's_proportion': 0, 'logOp': True, 'stub_w': 0} mu  [0, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01] k  [2, 3, 4, 5, 6]
