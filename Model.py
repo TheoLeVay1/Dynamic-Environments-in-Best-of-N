@@ -28,6 +28,25 @@ def compute_majority(self):
         return len(agreed_opinions) / len(agent_opinions)
     else:
         return 0
+    
+def compute_major_MSE(self):
+    agent_opinions = [agent.opinion for agent in self.model.schedule.agents]
+    agreed_opinions = [i for i in agent_opinions if i >= 0.9]    
+    
+    if len(agent_opinions) != 0:
+        majority = len(agreed_opinions) / len(agent_opinions)
+        return (self.model.option1_quality - majority) ** 2
+    
+    
+def compute_minor_MSE(self):
+    agent_opinions = [agent.opinion for agent in self.model.schedule.agents]
+    agreed_opinions = [i for i in agent_opinions if i <= 0.1]    
+    
+    if len(agent_opinions) != 0:
+        majority = len(agreed_opinions) / len(agent_opinions)
+        
+        return (self.model.option0_quality - majority) ** 2
+    
 
 def compute_average_opinion(model):
     agent_opinions = [agent.opinion for agent in model.schedule.agents]
@@ -312,12 +331,14 @@ class Model(mesa.Model):
             self.schedule.add(a)
 
         self.datacollector = mesa.DataCollector(
+            
             model_reporters = {"Average_opinion" : compute_average_opinion, "Option 0 quality" : "option0_quality",
                               "Option 1 quality" : "option1_quality"},
             
             
             agent_reporters = {"Opinion" : "opinion", "Majority" : compute_majority,
-                               "Dynamic_Majority" : compute_dynamic_majority, "Time" : lambda t : t.model.Step} )
+                               "Dynamic_Majority" : compute_dynamic_majority, "Time" : lambda t : t.model.Step, 
+                               "MSE1" : compute_major_MSE, "MSE2" : compute_minor_MSE} )
         
         if measures == "stubborn":
         
